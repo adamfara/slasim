@@ -14,49 +14,37 @@
 
 function [ lookup ] = sla_kinematics( ipts, direction, travel, n_step, n_points, carpos )
 % ipts:
-% uaf - U A ARM, Front BJ
-% uao - U A ARM, Outer BJ
-% uar - U A ARM, Rear BJ
-% laf - L A ARM, Front BJ
-% lao - L A ARM, Outer BJ
-% lar - L A ARM, Rear BJ
-% whc - Wheel Center
-% wcp - Wheel Contact Patch Point
-% tri - Tie Rod, Inner BJ
-% tro - Tie Rod, Outer BJ
+% uaf uao uar
+% laf lao lar
+% wc wcp
+% tri tro
 % pro
-% bc pivot
-% bc axis
-% bc shock
-% bc arb
-% bc pr
-% arb link pt
-% arb pivot
-% arb axis
+% bc pivot  bc axis  bc shock  bc arb  bc pr
+% arb link pt  arb pivot  arb axis
 % shock inboard
 
 upper_fibj = ipts(1,:);
 upper_ribj = ipts(3,:);
-upper_obj = ipts(2,:);          % changes with travel
+upper_obj = ipts(2,:);              % changes with travel
 
 lower_fibj = ipts(4,:);
 lower_ribj = ipts(6,:);
-lower_obj = ipts(5,:);          % changes with travel
+lower_obj = ipts(5,:);              % changes with travel
 
-wheel_center_init = ipts(7,:);  % changes with travel
-contact_patch_init = ipts(8,:); % changes with travel
+wheel_center_init = ipts(7,:);      % changes with travel
+contact_patch_init = ipts(8,:);     % changes with travel
 
 tierod_inner = ipts(9,:);
-tierod_outer = ipts(10,:);      % changes with travel
+tierod_outer = ipts(10,:);          % changes with travel
 
-pushrod_outer_init = ipts(11,:);     % changes with travel
+pushrod_outer_init = ipts(11,:);    % changes with travel
 
 bellcrank_pivot = ipts(12,:);
 bellcrank_axis = ipts(13,:);
-bellcrank_shock_init = ipts(14,:);   % changes with travel
-bellcrank_arb_init = ipts(15,:);     % changes with travel
-bellcrank_pushrod_init = ipts(16,:); % changes with travel
-arb_link_pt_init = ipts(17,:);       % changes with travel
+bellcrank_shock_init = ipts(14,:);  % changes with travel
+bellcrank_arb_init = ipts(15,:);    % changes with travel
+bellcrank_pushrod_init = ipts(16,:);% changes with travel
+arb_link_pt_init = ipts(17,:);      % changes with travel
 arb_pivot = ipts(18,:);
 arb_axis = ipts(19,:);
 shock_inboard = ipts(20,:);     
@@ -89,7 +77,7 @@ r = arb_pivot - arb_axis;
 r_unit = r ./ norm(r);
 v = arb_link_pt_init - arb_pivot;
 cp_arb_offset = dot(r_unit, v);
-cp_arb = arb_link_pt_init + cp_arb_offset * r_unit;
+cp_arb = arb_pivot + cp_arb_offset * r_unit;
 
 
 %% Step size discretization
@@ -135,6 +123,18 @@ bc_yprime = tbc(:,2);
 bc_len_pr = norm(bellcrank_pushrod_init - bellcrank_pivot);
 bc_circ_pr = bsxfun(@plus, bellcrank_pivot', bc_xprime*cos(theta)*bc_len_pr + bc_yprime*sin(theta)*bc_len_pr)';
 pushrod_length = norm(bellcrank_pushrod_init - pushrod_outer_init);
+
+
+%% Numerically construct a circle around ARB axis for arb link pt
+arb = cp_arb - arb_axis;
+arb_unit = arb ./ norm(arb);
+tarb = null(arb_unit);
+arb_xprime = tarb(:,1);
+arb_yprime = tarb(:,2);
+
+arb_arm = norm(cp_arb - arb_link_pt_init);
+arb_circ = bsxfun(@plus, cp_arb', arb_xprime*cos(theta)*arb_arm + arb_yprime*sin(theta)*arb_arm)';
+droplink_len = norm(bellcrank_arb_init - arb_link_pt_init);
 
 %% Upper OBJ
 Q_3D = zeros(n_step,3);
@@ -190,7 +190,7 @@ for i = 2:n_step
     %Search through the discretizated circle for Upper OBJ location 
     [Qtemp, minQerr] = find_intersection_circle_sphere( upper_circ, P_3D(i,:), Q_3D(i-1,:), dist_obj);
     Q_3D(i,:) = Qtemp;
-    disp(minQerr);
+%     disp(minQerr);
 
     %Finding tie rod outer ball joint location (i.e., coupler rotation)
     %Normalized (unit) vector of steering knuckle
@@ -209,7 +209,7 @@ for i = 2:n_step
     circle = bsxfun(@plus, close_point(i,:), (e*cos(theta)*r_circ + f*sin(theta)*r_circ)');
     [tobjtemp, minTRerr] = find_intersection_circle_sphere(circle, tierod_inner, tierod_obj(i-1,:), ltierod);
     tierod_obj(i,:) = tobjtemp;
-    disp(minTRerr);
+%     disp(minTRerr);
     
     if i == 2
         %The first time through, need to find the position of the wheel center
@@ -236,7 +236,7 @@ for i = 2:n_step
         bellcrank_shock(1,:) = bellcrank_shock_init;
         bellcrank_arb(1,:) = bellcrank_arb_init;
         bellcrank_pr(1,:) = bellcrank_pushrod_init;
-        
+        arb_link_pt(1,:) = arb_link_pt_init;
     end
     
     %Solve for wheel center positions
@@ -252,10 +252,20 @@ for i = 2:n_step
     % Find bellcrank orientation with pr length
     [bcprtemp, minBCPRerr] = find_intersection_circle_sphere(bc_circ_pr, pushrod_outer(i,:), bellcrank_pr(i-1,:), pushrod_length);
     bellcrank_pr(i,:) = bcprtemp;
-    disp(minBCPRerr);
+%     disp(minBCPRerr);
     
     %Solve for bellcrank shock pt position
     bellcrank_shock(i,:) = apply_kcs(bc_kcs_sh, bellcrank_pivot, bellcrank_pr(i,:), bellcrank_axis);
+    
+    %Solve for bellcrank arb pt position
+    bellcrank_arb(i,:) = apply_kcs(bc_kcs_arb, bellcrank_pivot, bellcrank_pr(i,:), bellcrank_axis);
+    
+    % Find arb rocker orientation with droplink length
+%     keyboard;
+    [arbtemp, minARBerr] = find_intersection_circle_sphere(arb_circ, bellcrank_arb(i,:), arb_link_pt(i-1,:), droplink_len);
+    arb_link_pt(i,:) = arbtemp;
+%     disp(minARBerr);
+    
 end
 
 %% Exporting lookup table
@@ -263,22 +273,22 @@ end
     
 %     keyboard;
     lookup(1,:,:)  = repmat(upper_fibj, [1 1 n_step]);
-    lookup(2,:,:)  = reshape(Q_3D', [1 3 n_step]);
+    lookup(2,:,:)  = reshape(Q_3D', [1 3 n_step]);%
     lookup(3,:,:)  = repmat(upper_ribj, [1 1 n_step]);
     lookup(4,:,:)  = repmat(lower_fibj, [1 1 n_step]);
-    lookup(5,:,:)  = reshape(P_3D', [1 3 n_step]);
+    lookup(5,:,:)  = reshape(P_3D', [1 3 n_step]);%
     lookup(6,:,:)  = repmat(lower_ribj, [1 1 n_step]);
-    lookup(7,:,:)  = reshape(wheel_center', [1 3 n_step]);
-    lookup(8,:,:)  = reshape(contact_patch', [1 3 n_step]);
+    lookup(7,:,:)  = reshape(wheel_center', [1 3 n_step]);%
+    lookup(8,:,:)  = reshape(contact_patch', [1 3 n_step]);%
     lookup(9,:,:)  = repmat(tierod_inner, [1 1 n_step]);
-    lookup(10,:,:) = reshape(tierod_obj', [1 3 n_step]);
+    lookup(10,:,:) = reshape(tierod_obj', [1 3 n_step]);%
     
-    lookup(11,:,:) = reshape(pushrod_outer', [1 3 n_step]);
+    lookup(11,:,:) = reshape(pushrod_outer', [1 3 n_step]);%
     lookup(12,:,:) = repmat(bellcrank_pivot, [1 1 n_step]);
     lookup(13,:,:) = repmat(bellcrank_axis, [1 1 n_step]);
-    lookup(14,:,:) = reshape(bellcrank_shock', [1 3 n_step]);
-    lookup(15,:,:) = reshape(bellcrank_arb', [1 3 n_step]);
-    lookup(16,:,:) = reshape(bellcrank_pr', [1 3 n_step]);
+    lookup(14,:,:) = reshape(bellcrank_shock', [1 3 n_step]);%
+    lookup(15,:,:) = reshape(bellcrank_arb', [1 3 n_step]);%
+    lookup(16,:,:) = reshape(bellcrank_pr', [1 3 n_step]);%
     lookup(17,:,:) = reshape(arb_link_pt', [1 3 n_step]);
     lookup(18,:,:) = repmat(arb_pivot, [1 1 n_step]);
     lookup(19,:,:) = repmat(arb_axis, [1 1 n_step]);
