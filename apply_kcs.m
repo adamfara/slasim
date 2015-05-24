@@ -15,7 +15,7 @@ function [ p ] = apply_kcs( kcs, rigid_body_origin, rigid_body_y, rigid_body_z_p
     x = cross(y, zp);
     z = cross(x, y);
     
-    T = [x y z o; 0 0 0 1];
+    T = [x' y' z' o'; 0 0 0 1];
     p_homogeneous = T * kcs;
     p = p_homogeneous(1:3)';
 

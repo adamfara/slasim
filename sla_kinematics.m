@@ -125,9 +125,9 @@ tbc = null(bc_unit);
 bc_xprime = tbc(:,1);
 bc_yprime = tbc(:,2);
 
-bc_len_pr = bellcrank_pushrod - bellcrank_pivot;
+bc_len_pr = norm(bellcrank_pushrod_init - bellcrank_pivot);
 bc_circ_pr = bsxfun(@plus, bellcrank_pivot', bc_xprime*cos(theta)*bc_len_pr + bc_yprime*sin(theta)*bc_len_pr)';
-
+pushrod_length = norm(bellcrank_pushrod_init - pushrod_outer_init);
 
 %% Upper OBJ
 Q_3D = zeros(n_step,3);
@@ -254,77 +254,73 @@ for i = 2:n_step
     %with the orientation of the knuckle uniquely describe the contact
     %patch and wheel center locations.
     
-    o = close_point(i,:);
-    y = Q_3D(i,:)-o;
-    
-    y = y./sqrt(sum(y.^2));
-    z = tierod_obj(i,:)-o;
-    z = z./sqrt(sum(z.^2));
-    x = cross(y,z);
-    T_knuckle = zeros(4);
-    T_knuckle(1:3,1) = x';
-    T_knuckle(1:3,2) = y';
-    T_knuckle(1:3,3) = z';
-    T_knuckle(1:3,4) = o';
-    T_knuckle(4,4) = 1;
-    
     if i == 2
         
         %The first time through, need to find the position of the wheel center
         %and contact patch w.r.t. the knuckle coordinate system. Since this
         %does not change, it only needs to be calculated once.
-        o_first = first_cp;
-        y_first = Q_3D(1,:) - o_first;
-        y_first = y_first./sqrt(sum(y_first.^2));
-        z_first = tierod_obj(i,:) - o_first;
-        z_first = z_first./sqrt(sum(z_first.^2));
-        x_first = cross(y_first,z_first);
-        T_knuckle_first = zeros(4);
-        T_knuckle_first(1:3,1) = x_first';
-        T_knuckle_first(1:3,2) = y_first';
-        T_knuckle_first(1:3,3) = z_first';
-        T_knuckle_first(1:3,4) = o_first';
-        T_knuckle_first(4,4) = 1;
+        wc_kcs = get_kcs(first_cp, Q_3D(1,:), tierod_obj(i,:), wheel_center_init);
+        cp_kcs = get_kcs(first_cp, Q_3D(1,:), tierod_obj(i,:), contact_patch_init);
         
-        wheel_center_init(4) = 1;
-        wc_kcs = T_knuckle_first\wheel_center_init';
-        wheel_center(1,:) = wheel_center_init(1:3);
-        
-        contact_patch_init(4) = 1;
-        cp_kcs = T_knuckle_first\contact_patch_init';
-        contact_patch(1,:) = contact_patch_init(1:3);
+        wheel_center(1,:) = wheel_center_init;
+        contact_patch(1,:) = contact_patch_init;
         
         % Also need to get the constant transformation of the lower a-arm
         % used to calculate the location of the pushrod obj
-        o_first = lower_obj;
-        y_first = lower_ribj - o_first;
-        y_first = y_first./sqrt(sum(y_first.^2));
-        z_first = lower_fibj - o_first;
-        z_first = z_first./sqrt(sum(z_first.^2));
-        x_first = cross(y_first,z_first);
-        % now recorrect z because y and z are not perpendicular to start
-        % with
-        z_first = cross(x_first, y_first);
-        % build transformation
-        T_la_first = zeros(4);
-        T_la_first(1:3,1) = x_first';
-        T_la_first(1:3,2) = y_first';
-        T_la_first(1:3,3) = z_first';
-        T_la_first(1:3,4) = o_first';
-        T_la_first(4,4) = 1;
+        la_kcs = get_kcs(lower_obj, lower_ribj, lower_fibj, pushrod_outer_init);
         
-        la_kcs = T_la_first \ [pushrod_outer 1]';
+        pushrod_outer(1,:) = pushrod_outer_init;
+        
+        % Also get bellcrank KCSs for shock and arb attachment.  Pushrod
+        % attachment to bellcrank will be driven by a numerical search and
+        % is the reference point for the y-axis.
+        bc_kcs_sh = get_kcs(bellcrank_pivot, bellcrank_pushrod_init, bellcrank_axis, bellcrank_shock_init);
+        bc_kcs_arb = get_kcs(bellcrank_pivot, bellcrank_pushrod_init, bellcrank_axis, bellcrank_arb_init);
+        
+        bellcrank_shock(1,:) = bellcrank_shock_init;
+        bellcrank_arb(1,:) = bellcrank_arb_init;
+        bellcrank_pr(1,:) = bellcrank_pushrod_init;
         
     end
     
     %Solve for wheel center positions
-    t4 = T_knuckle * wc_kcs;
-    wheel_center(i,:) = t4(1:3)';
+    wheel_center(i,:) = apply_kcs(wc_kcs, close_point(i,:), Q_3D(i,:), tierod_obj(i,:));
     
     %Solve for contact patch positions
-    t5 = T_knuckle * cp_kcs;
-    contact_patch(i,:) = t5(1:3)';
+    contact_patch(i,:) = apply_kcs(cp_kcs, close_point(i,:), Q_3D(i,:), tierod_obj(i,:));
     
+    %Solve for pushrod obj positions
+    pushrod_outer(i,:) = apply_kcs(la_kcs, P_3D(i,:), lower_ribj, lower_fibj);
+    
+    
+    %Find the intersection of the circle described by the bellcrank pr pt
+    %with the sphere defined by the distance between the pushrod OBJ at
+    %its center and a radius equal to the length between the ball joints.
+    err3 = bsxfun(@minus, sqrt(sum(bsxfun(@minus, bc_circ_pr, pushrod_outer(i,:)).^2,2)), pushrod_length);
+    mins = find(imregionalmin(abs(err3)));
+%     keyboard;
+    mins(mins == 1) = [];
+    mins(mins == n_points) = [];
+    
+    min_index_inc = mins(1);
+    min_index_dec = mins(2);
+    
+    %In order to find the 'correct' intersection, the program looks to the
+    %last solution found. Whichever intersection point is closer to the
+    %last solution will be the correct one.
+    point_inc = bc_circ_pr(min_index_inc,:);
+    point_dec = bc_circ_pr(min_index_dec,:);
+    dist_inc = norm(point_inc - pushrod_outer(i-1,:));
+    dist_dec = norm(point_dec - pushrod_outer(i-1,:));
+    if dist_inc < dist_dec
+        bellcrank_pr(i,:) = point_inc;
+    else
+        bellcrank_pr(i,:) = point_dec;
+    end
+    disp(min(abs(err3(min_index_inc)), abs(err3(min_index_dec))));
+    
+    %Solve for bellcrank shock pt position
+    bellcrank_shock(i,:) = apply_kcs(bc_kcs_sh, bellcrank_pivot, bellcrank_pr(i,:), bellcrank_axis);
 end
 
 %% Exporting lookup table

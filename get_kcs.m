@@ -15,8 +15,8 @@ function [ kcs ] = get_kcs( rigid_body_origin, rigid_body_y, rigid_body_z_prime,
     x = cross(y, zp);
     z = cross(x, y);
     
-    T = [x y z o; 0 0 0 1];
-    kcs = T \ rigid_body_interest_point;
+    T = [x' y' z' o'; 0 0 0 1];
+    kcs = T \ [rigid_body_interest_point 1]';
 
 end
 
