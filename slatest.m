@@ -70,9 +70,9 @@ carpos.t = zeros(3,1);
 
 
 %% Rig suspensions and generate lookup tables for travel
-n_step = 20;
+n_step = 100;
 desired_travel = 2;
-n_points = 10000;
+n_points = 100000;
 
 rrr = sla_kinematics(rearright, -1, desired_travel, n_step, n_points, carpos);
 rrj = sla_kinematics(rearright, 1, desired_travel, n_step, n_points, carpos);
@@ -89,6 +89,9 @@ fl_lut(:,2,:) = -fl_lut(:,2,:);
 
 %% Calculate geometric parameters for the rig
 rr_geo = sla_geometry(rr_lut);
+rl_geo = sla_geometry(rl_lut);
+fr_geo = sla_geometry(fr_lut);
+fl_geo = sla_geometry(fl_lut);
 
 
 %% Test that it works by actuating suspension through range

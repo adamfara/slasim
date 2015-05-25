@@ -31,7 +31,7 @@ function [ opts ] = sla_geometry( ipts )
     bellcrank_shock     = squeeze(ipts(14,:,:));
     bellcrank_arb       = squeeze(ipts(15,:,:));
     bellcrank_pushrod   = squeeze(ipts(16,:,:));
-    arb_link_pt_init    = squeeze(ipts(17,:,:));
+    arb_link_pt         = squeeze(ipts(17,:,:));
     arb_pivot           = squeeze(ipts(18,:,:));
     arb_axis            = squeeze(ipts(19,:,:));
     shock_inboard       = squeeze(ipts(20,:,:));
@@ -103,6 +103,34 @@ function [ opts ] = sla_geometry( ipts )
     % Camber Change Rate
     
     
+    
+    %% Calculate some interesting travels - can correlate to data and such
+    opts.cp_travel = contact_patch(3,:);
+    opts.shock_travel = sqrt(sum((bellcrank_shock - shock_inboard).^2,1));
+    opts.shock_travel = opts.shock_travel - opts.shock_travel((n_steps+1)/2);
+    
+    % can only do arb angle relative to centerline - need other corner for
+    % full bar displacement angle
+    r = arb_pivot(:,(n_steps+1)/2) - arb_axis(:,(n_steps+1)/2);
+    r_unit = r ./ norm(r);
+    v = arb_link_pt(:,(n_steps+1)/2) - arb_pivot(:,(n_steps+1)/2);
+    cp_arb_offset = dot(r_unit, v);
+    cp_arb = arb_pivot(:,(n_steps+1)/2) + cp_arb_offset * r_unit;
+    
+    arb_a = bsxfun(@minus, arb_link_pt, cp_arb);
+    arb_b = repmat(arb_a(:,(n_steps+1)/2), 1, n_steps);
+    
+    arb_a = bsxfun(@rdivide, arb_a, sqrt(sum(arb_a.^2,1)));
+    arb_b = bsxfun(@rdivide, arb_b, sqrt(sum(arb_b.^2,1)));
+    
+    % Here we let negative ride travel (jounce due to SAE coord system) is
+    % negative arb angular displacement.  This should not really matter as
+    % long as you always use this, because restoring moment is proportional
+    % to the magnitude of the sum of displacements (torsional spring
+    % assumed)
+    opts.arb_ang_disp = sign(opts.cp_travel) .* acosd(dot(arb_a, arb_b));
+    
+    %% Collect other outputs
     opts.camber = camber;
     opts.caster = caster;
     opts.trail = trail;

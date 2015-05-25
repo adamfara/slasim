@@ -1,8 +1,9 @@
 function [ p, min_err ] = find_intersection_circle_sphere( circle_pts, ref_pt, prev_pt, dist_goal )
     err = bsxfun(@minus, sqrt(sum(bsxfun(@minus, circle_pts, ref_pt).^2,2)), dist_goal);
-    mins = find(imregionalmin(abs(err)));
-    mins(mins == 1) = [];
-    mins(mins == length(circle_pts)) = [];
+%     mins = find(imregionalmin(abs(err)));
+    [~,mins] = findpeaks(-abs(err)); % this is faster
+%     mins(mins == 1) = [];
+%     mins(mins == length(circle_pts)) = [];
     
     min_index_inc = mins(1);
     min_index_dec = mins(2);
