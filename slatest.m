@@ -70,7 +70,7 @@ carpos.t = zeros(3,1);
 
 
 %% Rig suspensions and generate lookup tables for travel
-n_step = 10;
+n_step = 20;
 desired_travel = 2;
 n_points = 10000;
 
@@ -92,48 +92,34 @@ rr_geo = sla_geometry(rr_lut);
 
 
 %% Test that it works by actuating suspension through range
-figure(1); clf; hold on;
-hs.o = PER_plot_origin(carbox, carpos);
 
-hs.rr_o = PER_plot_SLA(rearright, carpos);
-hs.rl_o = PER_plot_SLA(rearleft, carpos);
-hs.fr_o = PER_plot_SLA(frontright, carpos);
-hs.fl_o = PER_plot_SLA(frontleft, carpos);
+plotting = false;
 
-hs.rr = PER_plot_SLA(rearright, carpos, 0);
-hs.rl = PER_plot_SLA(rearleft, carpos, 0);
-hs.fr = PER_plot_SLA(frontright, carpos, 0);
-hs.fl = PER_plot_SLA(frontleft, carpos, 0);
+if (plotting)
+    figure(1); clf; hold on;
+    hs.o = PER_plot_origin(carbox, carpos);
 
-drawnow;
+    hs.rr_o = PER_plot_SLA(rearright, carpos);
+    hs.rl_o = PER_plot_SLA(rearleft, carpos);
+    hs.fr_o = PER_plot_SLA(frontright, carpos);
+    hs.fl_o = PER_plot_SLA(frontleft, carpos);
 
-for ii = 1:(2*n_step - 1)
-%     disp(ii);
-    PER_plot_SLA(rr_lut(:,:,ii), carpos, 0, hs.rr);
-    PER_plot_SLA(rl_lut(:,:,ii), carpos, 0, hs.rl);
-    PER_plot_SLA(fr_lut(:,:,ii), carpos, 0, hs.fr);
-    PER_plot_SLA(fl_lut(:,:,ii), carpos, 0, hs.fl);
+    hs.rr = PER_plot_SLA(rearright, carpos, 0);
+    hs.rl = PER_plot_SLA(rearleft, carpos, 0);
+    hs.fr = PER_plot_SLA(frontright, carpos, 0);
+    hs.fl = PER_plot_SLA(frontleft, carpos, 0);
 
     drawnow;
-end
     
-while(true)%false)%
-    for ii = (2*n_step - 1):-1:1
-    %     disp(ii);
-        PER_plot_SLA(rr_lut(:,:,ii), carpos, 0, hs.rr);
-        PER_plot_SLA(rl_lut(:,:,ii), carpos, 0, hs.rl);
-        PER_plot_SLA(fr_lut(:,:,ii), carpos, 0, hs.fr);
-        PER_plot_SLA(fl_lut(:,:,ii), carpos, 0, hs.fl);
+    while(plotting)
+        for ii = [(2*n_step - 1):-1:2 1:(2*n_step - 1)-1]
+        %     disp(ii);
+            PER_plot_SLA(rr_lut(:,:,ii), carpos, 0, hs.rr);
+            PER_plot_SLA(rl_lut(:,:,ii), carpos, 0, hs.rl);
+            PER_plot_SLA(fr_lut(:,:,ii), carpos, 0, hs.fr);
+            PER_plot_SLA(fl_lut(:,:,ii), carpos, 0, hs.fl);
 
-        drawnow;
-    end
-    for ii = 1:(2*n_step - 1)
-    %     disp(ii);
-        PER_plot_SLA(rr_lut(:,:,ii), carpos, 0, hs.rr);
-        PER_plot_SLA(rl_lut(:,:,ii), carpos, 0, hs.rl);
-        PER_plot_SLA(fr_lut(:,:,ii), carpos, 0, hs.fr);
-        PER_plot_SLA(fl_lut(:,:,ii), carpos, 0, hs.fl);
-
-        drawnow;
+            drawnow;
+        end
     end
 end

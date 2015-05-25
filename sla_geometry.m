@@ -89,25 +89,30 @@ function [ opts ] = sla_geometry( ipts )
     dot_upper = -dot(upper_normal, upper_fibj);
     dot_lower = -dot(lower_normal, lower_fibj);
     
-    fv_ic = zeros(3,1);
-    
     fv_ic = [zeros(1, n_steps);
              -(dot_lower .* -upper_normal(3, :) - dot_upper .* -lower_normal(3, :)) ./ instant_axis_normal(1,:);
-             (dot_upper .* -lower_normal(2, :) - dot_lower .* -upper_normal(2, :)) ./ instant_axis_normal(1,:)];
-         
-    keyboard;
+             -(dot_upper .* -lower_normal(2, :) - dot_lower .* -upper_normal(2, :)) ./ instant_axis_normal(1,:)];
     
     % Side View Instant Center
-    %% Camber Change Rate
+    t = (contact_patch(1) - fv_ic(1))/instant_axis_normal(1);
+    sv_ic(1) = contact_patch(1);
+    sv_ic(2) = fv_ic(2) + t*instant_axis_normal(2);
+    sv_ic(3) = fv_ic(3) + t*instant_axis_normal(3);
     
     
+    % Camber Change Rate
     
     
-    
-    
-    
-    
-    
-    
+    opts.camber = camber;
+    opts.caster = caster;
+    opts.trail = trail;
+    opts.kingpin = kingpin;
+    opts.scrub = scrub;
+    opts.spindle = spindle;
+    opts.fv_ic = fv_ic;
+%     opts.sv_ic = sv_ic;
+%     opts.rch = RCH;
+%     opts.camber_change_rate = camber_change_rate;
+
     
 end
