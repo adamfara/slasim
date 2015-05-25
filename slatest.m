@@ -87,6 +87,10 @@ fl_lut = fr_lut;
 fl_lut(:,2,:) = -fl_lut(:,2,:);
 
 
+%% Calculate geometric parameters for the rig
+rr_geo = sla_geometry(rr_lut);
+
+
 %% Test that it works by actuating suspension through range
 figure(1); clf; hold on;
 hs.o = PER_plot_origin(carbox, carpos);
@@ -133,5 +137,3 @@ while(true)%false)%
         drawnow;
     end
 end
-
-%% Calculate geometric parameters for the rig
