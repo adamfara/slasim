@@ -10,6 +10,12 @@ m2in = m2mm * mm2in;
 %  upside down z axis wasn't playing nicely with plot3 / view
 R = [1 0 0;  0 -1 0;  0 0 -1];
 
+n_step = 100;
+desired_travel = 3;
+n_points = 100000;
+
+name = ['sla-t' num2str(desired_travel) '-s' num2str(n_step) '-n' num2str(n_points)];
+
 
 %% Define static ride-height points
 rearright = [0.2794000000, 0.2195195000, -0.3278632000; %ufibj
@@ -70,10 +76,6 @@ carpos.t = zeros(3,1);
 
 
 %% Rig suspensions and generate lookup tables for travel
-n_step = 100;
-desired_travel = 2;
-n_points = 100000;
-
 rrr = sla_kinematics(rearright, -1, desired_travel, n_step, n_points, carpos);
 rrj = sla_kinematics(rearright, 1, desired_travel, n_step, n_points, carpos);
 rr_lut = cat(3, rrr(:,:,end:-1:2), rrj);
@@ -94,33 +96,56 @@ fr_geo = sla_geometry(fr_lut);
 fl_geo = sla_geometry(fl_lut);
 
 
+%% Save outputs for future use
+sla.rearright = rearright;
+sla.rearleft = rearleft;
+sla.frontright = frontright;
+sla.frontleft = frontleft;
+sla.rr = rr_lut;
+sla.rl = rl_lut;
+sla.fr = fr_lut;
+sla.fl = fl_lut;
+sla.rr_geo = rr_geo;
+sla.rl_geo = rl_geo;
+sla.fr_geo = fr_geo;
+sla.fl_geo = fl_geo;
+sla.carpos = carpos;
+sla.carbox = carbox;
+sla.n_step = n_step;
+sla.n_points = n_points;
+sla.desired_travel = desired_travel;
+
+clearvars -except sla name
+save([name '.mat']);
+
+
 %% Test that it works by actuating suspension through range
 
 plotting = false;
 
 if (plotting)
     figure(1); clf; hold on;
-    hs.o = PER_plot_origin(carbox, carpos);
+    hs.o = PER_plot_origin(sla.carbox, sla.carpos);
 
-    hs.rr_o = PER_plot_SLA(rearright, carpos);
-    hs.rl_o = PER_plot_SLA(rearleft, carpos);
-    hs.fr_o = PER_plot_SLA(frontright, carpos);
-    hs.fl_o = PER_plot_SLA(frontleft, carpos);
+    hs.rr_o = PER_plot_SLA(sla.rearright,   sla.carpos);
+    hs.rl_o = PER_plot_SLA(sla.rearleft,    sla.carpos);
+    hs.fr_o = PER_plot_SLA(sla.frontright,  sla.carpos);
+    hs.fl_o = PER_plot_SLA(sla.frontleft,   sla.carpos);
 
-    hs.rr = PER_plot_SLA(rearright, carpos, 0);
-    hs.rl = PER_plot_SLA(rearleft, carpos, 0);
-    hs.fr = PER_plot_SLA(frontright, carpos, 0);
-    hs.fl = PER_plot_SLA(frontleft, carpos, 0);
+    hs.rr = PER_plot_SLA(sla.rearright,     sla.carpos, 0);
+    hs.rl = PER_plot_SLA(sla.rearleft,      sla.carpos, 0);
+    hs.fr = PER_plot_SLA(sla.frontright,    sla.carpos, 0);
+    hs.fl = PER_plot_SLA(sla.frontleft,     sla.carpos, 0);
 
     drawnow;
     
     while(plotting)
-        for ii = [(2*n_step - 1):-1:2 1:(2*n_step - 1)-1]
+        for ii = [(2*sla.n_step - 1):-1:2 1:(2*sla.n_step - 1)-1]
         %     disp(ii);
-            PER_plot_SLA(rr_lut(:,:,ii), carpos, 0, hs.rr);
-            PER_plot_SLA(rl_lut(:,:,ii), carpos, 0, hs.rl);
-            PER_plot_SLA(fr_lut(:,:,ii), carpos, 0, hs.fr);
-            PER_plot_SLA(fl_lut(:,:,ii), carpos, 0, hs.fl);
+            PER_plot_SLA(sla.rr(:,:,ii), sla.carpos, 0, hs.rr);
+            PER_plot_SLA(sla.rl(:,:,ii), sla.carpos, 0, hs.rl);
+            PER_plot_SLA(sla.fr(:,:,ii), sla.carpos, 0, hs.fr);
+            PER_plot_SLA(sla.fl(:,:,ii), sla.carpos, 0, hs.fl);
 
             drawnow;
         end
