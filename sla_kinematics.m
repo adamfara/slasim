@@ -47,7 +47,8 @@ bellcrank_pushrod_init = ipts(16,:);% changes with travel
 arb_link_pt_init = ipts(17,:);      % changes with travel
 arb_pivot = ipts(18,:);
 arb_axis = ipts(19,:);
-shock_inboard = ipts(20,:);     
+shock_inboard = ipts(20,:);
+spindle_ref_init = ipts(21,:);      % changes with travel
 
 
 %% get closest point on upper a-arm axis to outer bj by projection
@@ -165,6 +166,7 @@ tierod_obj = zeros(n_step,3);
 tierod_obj(1,:) = tierod_outer;
 wheel_center = zeros(n_step,3);
 contact_patch = zeros(n_step,3);
+spindle_ref = zeros(n_step,3);
 pushrod_outer = zeros(n_step,3);
 bellcrank_shock = zeros(n_step,3);
 bellcrank_arb = zeros(n_step,3);
@@ -217,9 +219,11 @@ for i = 2:n_step
         %does not change, it only needs to be calculated once.
         wc_kcs = get_kcs(first_cp, Q_3D(1,:), tierod_obj(i,:), wheel_center_init);
         cp_kcs = get_kcs(first_cp, Q_3D(1,:), tierod_obj(i,:), contact_patch_init);
+        sr_kcs = get_kcs(first_cp, Q_3D(1,:), tierod_obj(i,:), spindle_ref_init);
         
         wheel_center(1,:) = wheel_center_init;
         contact_patch(1,:) = contact_patch_init;
+        spindle_ref(1,:) = spindle_ref_init;
         
         % Also need to get the constant transformation of the lower a-arm
         % used to calculate the location of the pushrod obj
@@ -245,6 +249,9 @@ for i = 2:n_step
     %Solve for contact patch positions
     contact_patch(i,:) = apply_kcs(cp_kcs, close_point(i,:), Q_3D(i,:), tierod_obj(i,:));
     
+    %Solve for spindle ref point positions
+    spindle_ref(i,:) = apply_kcs(sr_kcs, close_point(i,:), Q_3D(i,:), tierod_obj(i,:));
+    
     %Solve for pushrod obj positions
     pushrod_outer(i,:) = apply_kcs(la_kcs, P_3D(i,:), lower_ribj, lower_fibj);
     
@@ -269,7 +276,7 @@ for i = 2:n_step
 end
 
 %% Exporting lookup table
-    lookup = zeros(20, 3, n_step);
+    lookup = zeros(21, 3, n_step);
     
 %     keyboard;
     lookup(1,:,:)  = repmat(upper_fibj, [1 1 n_step]);
@@ -293,6 +300,7 @@ end
     lookup(18,:,:) = repmat(arb_pivot, [1 1 n_step]);
     lookup(19,:,:) = repmat(arb_axis, [1 1 n_step]);
     lookup(20,:,:) = repmat(shock_inboard, [1 1 n_step]);
+    lookup(21,:,:) = reshape(spindle_ref', [1 3 n_step]);%
 
 end
 

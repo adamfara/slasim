@@ -35,6 +35,7 @@ function [ opts ] = sla_geometry( ipts )
     arb_pivot           = squeeze(ipts(18,:,:));
     arb_axis            = squeeze(ipts(19,:,:));
     shock_inboard       = squeeze(ipts(20,:,:));
+    spindle_ref         = squeeze(ipts(21,:,:));
     
     n_steps = size(ipts, 3);
 
@@ -51,6 +52,15 @@ function [ opts ] = sla_geometry( ipts )
     camber_b = bsxfun(@rdivide, camber_b, sqrt(sum(camber_b.^2,1)));
     
     camber = -acosd(dot(camber_a, camber_b));
+    
+    
+    %% Toe / Steered Angle
+    toe_a = contact_patch - wheel_center;
+    toe_b = spindle_ref - wheel_center;
+    
+    toe_vec = cross(toe_a, toe_b);
+    toe_vec = bsxfun(@rdivide, toe_vec, sqrt(sum(toe_vec.^2,1)));
+    toe = wrapTo360(atan2d(toe_vec(2,:), toe_vec(1,:))) - 180;
     
     
     %% Caster Angles and Mechanical Trail
@@ -132,6 +142,7 @@ function [ opts ] = sla_geometry( ipts )
     
     %% Collect other outputs
     opts.camber = camber;
+    opts.steered_angle = toe;
     opts.caster = caster;
     opts.trail = trail;
     opts.kingpin = kingpin;

@@ -10,11 +10,13 @@ m2in = m2mm * mm2in;
 %  upside down z axis wasn't playing nicely with plot3 / view
 R = [1 0 0;  0 -1 0;  0 0 -1];
 
-n_step = 100;
-desired_travel = 3;
-n_points = 100000;
+n_step_ride = 20;
+n_step_steering = 10;
+desired_ride_travel = 3;
+desired_steering_travel = 1;
+n_points = 10000;
 
-name = ['sla-t' num2str(desired_travel) '-s' num2str(n_step) '-n' num2str(n_points)];
+name = ['sla-t' num2str(desired_ride_travel) '-s' num2str(n_step_ride) '-n' num2str(n_points)];
 
 
 %% Define static ride-height points
@@ -37,7 +39,8 @@ rearright = [0.2794000000, 0.2195195000, -0.3278632000; %ufibj
              0.2036572000, 0.2071687500, -0.1135724155; %arb link pt
              0.2667000000, 0.2159000000, -0.1135724155; %arb pivot
              0.2667000000, 0.0000000000, -0.1135724155; %arb axis
-             0.2913857422, 0.0424136989, -0.3498214906  %shock inboard
+             0.2913857422, 0.0424136989, -0.3498214906; %shock inboard
+             0.0000000000, 0.6424709459, -0.2627653100  %wheel spindle ref 
              ].*m2in;
 
 frontright = [1.6438880000, 0.2692400000, -0.3395980000; %ufibj
@@ -59,7 +62,8 @@ frontright = [1.6438880000, 0.2692400000, -0.3395980000; %ufibj
               1.3906638194, 0.1849437500, -0.5043048932; %arb link pt
               1.4478000000, 0.1936750000, -0.5309479318; %arb pivot
               1.4478000000, 0.0000000000, -0.5309479318; %arb axis
-              1.3558372496, 0.1802775981, -0.5397651490  %shock inboard
+              1.3558372496, 0.1802775981, -0.5397651490; %shock inboard
+              1.5367000000, 0.6523112000, -0.2648604770  %wheel spindle ref 
               ].*m2in;
               
 % can flip the y-coord to get the other half of the car
@@ -76,15 +80,25 @@ carpos.t = zeros(3,1);
 
 
 %% Rig suspensions and generate lookup tables for travel
-rrr = sla_kinematics(rearright, -1, desired_travel, n_step, n_points, carpos);
-rrj = sla_kinematics(rearright, 1, desired_travel, n_step, n_points, carpos);
+% Rears have no steer effect.  To evaluate 4-wheel steer need to change
+% this
+rrr = sla_kinematics(rearright, -1, desired_ride_travel, n_step_ride, n_points, carpos);
+rrj = sla_kinematics(rearright, 1, desired_ride_travel, n_step_ride, n_points, carpos);
 rr_lut = cat(3, rrr(:,:,end:-1:2), rrj);
+
 rl_lut = rr_lut;
 rl_lut(:,2,:) = -rl_lut(:,2,:);
 
-frr = sla_kinematics(frontright, -1, desired_travel, n_step, n_points, carpos);
-frj = sla_kinematics(frontright, 1, desired_travel, n_step, n_points, carpos);
-fr_lut = cat(3, frr(:,:,end:-1:2), frj);
+% Front wheels are steered at the TRI
+step_steering = desired_steering_travel / (n_step_steering - 1);
+fr_lut = zeros([size(rr_lut) n_step_steering]);
+
+for ii = 1:n_step_steering
+    frr = sla_kinematics(frontright, -1, desired_ride_travel, n_step_ride, n_points, carpos);
+    frj = sla_kinematics(frontright, 1, desired_ride_travel, n_step_ride, n_points, carpos);
+    fr_lut(:,:,:,ii) = cat(3, frr(:,:,end:-1:2), frj);
+end
+
 fl_lut = fr_lut;
 fl_lut(:,2,:) = -fl_lut(:,2,:);
 
@@ -111,9 +125,11 @@ sla.fr_geo = fr_geo;
 sla.fl_geo = fl_geo;
 sla.carpos = carpos;
 sla.carbox = carbox;
-sla.n_step = n_step;
+sla.n_step_ride = n_step_ride;
+sla.n_step_steering = n_step_steering;
 sla.n_points = n_points;
-sla.desired_travel = desired_travel;
+sla.desired_ride_travel = desired_ride_travel;
+sla.desired_steering_travel = desired_steering_travel;
 
 clearvars -except sla name
 save([name '.mat']);
