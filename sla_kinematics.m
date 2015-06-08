@@ -6,9 +6,6 @@
 % Input inboard points and outboard points at ride height
 % Solve for point locations at some deflection
 %
-% Actuation is ignored, i.e. pushrod/bellcrank location not known
-% These can be integrated later through motion ratio math
-%
 % Coordinate system is SAE J670 - Z down, X forward, Y outboard
 % Assume we do this for the right side, can flip for left
 

@@ -16,7 +16,7 @@ desired_ride_travel = 3;
 desired_steering_travel = 1;
 n_points = 10000;
 
-name = ['sla-t' num2str(desired_ride_travel) '-s' num2str(n_step_ride) '-n' num2str(n_points)];
+name = ['sla-t' num2str(desired_ride_travel) '-s' num2str(n_step_ride) '-n' num2str(n_points) '-s' num2str(n_step_steering)];
 
 
 %% Define static ride-height points
@@ -91,23 +91,40 @@ rl_lut(:,2,:) = -rl_lut(:,2,:);
 
 % Front wheels are steered at the TRI
 step_steering = desired_steering_travel / (n_step_steering - 1);
-fr_lut = zeros([size(rr_lut) n_step_steering]);
+fr_lut = zeros([size(rr_lut) 2*n_step_steering-1]);
 
-for ii = 1:n_step_steering
-    frr = sla_kinematics(frontright, -1, desired_ride_travel, n_step_ride, n_points, carpos);
-    frj = sla_kinematics(frontright, 1, desired_ride_travel, n_step_ride, n_points, carpos);
-    fr_lut(:,:,:,ii) = cat(3, frr(:,:,end:-1:2), frj);
+frr = sla_kinematics(frontright, -1, desired_ride_travel, n_step_ride, n_points, carpos);
+frj = sla_kinematics(frontright, 1, desired_ride_travel, n_step_ride, n_points, carpos);
+fr_lut(:,:,:,n_step_steering) = cat(3, frr(:,:,end:-1:2), frj);
+frontright_steered = frontright;
+
+for ii = 2:n_step_steering
+    frontright_steered = sla_steer(frontright_steered, step_steering, n_points);
+    
+    frr = sla_kinematics(frontright_steered, -1, desired_ride_travel, n_step_ride, n_points, carpos);
+    frj = sla_kinematics(frontright_steered, 1, desired_ride_travel, n_step_ride, n_points, carpos);
+    fr_lut(:,:,:,ii + n_step_steering - 1) = cat(3, frr(:,:,end:-1:2), frj);
 end
 
+frontright_steered = frontright;
+for ii = 2:n_step_steering
+    frontright_steered = sla_steer(frontright_steered, -step_steering, n_points);
+    
+    frr = sla_kinematics(frontright_steered, -1, desired_ride_travel, n_step_ride, n_points, carpos);
+    frj = sla_kinematics(frontright_steered, 1, desired_ride_travel, n_step_ride, n_points, carpos);
+    fr_lut(:,:,:,-ii+1+n_step_steering) = cat(3, frr(:,:,end:-1:2), frj);
+end
+    
+
 fl_lut = fr_lut;
-fl_lut(:,2,:) = -fl_lut(:,2,:);
+fl_lut(:,2,:,:) = -fl_lut(:,2,:,end:-1:1);
 
 
 %% Calculate geometric parameters for the rig
 rr_geo = sla_geometry(rr_lut);
 rl_geo = sla_geometry(rl_lut);
-fr_geo = sla_geometry(fr_lut);
-fl_geo = sla_geometry(fl_lut);
+fr_geo = sla_geometry(fr_lut(:,:,:,1));
+fl_geo = sla_geometry(fl_lut(:,:,:,1));
 
 
 %% Save outputs for future use
@@ -131,11 +148,11 @@ sla.n_points = n_points;
 sla.desired_ride_travel = desired_ride_travel;
 sla.desired_steering_travel = desired_steering_travel;
 
-clearvars -except sla name
+clearvars -except sla name n_step_ride n_step_steering
 save([name '.mat']);
 
 
-%% Test that it works by actuating suspension through range
+%% Actuate suspension through ride range
 
 plotting = false;
 
@@ -156,12 +173,46 @@ if (plotting)
     drawnow;
     
     while(plotting)
-        for ii = [(2*sla.n_step - 1):-1:2 1:(2*sla.n_step - 1)-1]
+        for ii = [(2*sla.n_step_ride - 1):-1:2 1:(2*sla.n_step_ride - 1)-1]
         %     disp(ii);
             PER_plot_SLA(sla.rr(:,:,ii), sla.carpos, 0, hs.rr);
             PER_plot_SLA(sla.rl(:,:,ii), sla.carpos, 0, hs.rl);
-            PER_plot_SLA(sla.fr(:,:,ii), sla.carpos, 0, hs.fr);
-            PER_plot_SLA(sla.fl(:,:,ii), sla.carpos, 0, hs.fl);
+            PER_plot_SLA(sla.fr(:,:,ii,n_step_steering), sla.carpos, 0, hs.fr);
+            PER_plot_SLA(sla.fl(:,:,ii,n_step_steering), sla.carpos, 0, hs.fl);
+
+            drawnow;
+        end
+    end
+end
+
+
+%% Actuate suspension through steered range
+
+plotting = true;
+
+if (plotting)
+    figure(1); clf; hold on;
+    hs.o = PER_plot_origin(sla.carbox, sla.carpos);
+
+    hs.rr_o = PER_plot_SLA(sla.rearright,   sla.carpos);
+    hs.rl_o = PER_plot_SLA(sla.rearleft,    sla.carpos);
+    hs.fr_o = PER_plot_SLA(sla.frontright,  sla.carpos);
+    hs.fl_o = PER_plot_SLA(sla.frontleft,   sla.carpos);
+
+    hs.rr = PER_plot_SLA(sla.rearright,     sla.carpos, 0);
+    hs.rl = PER_plot_SLA(sla.rearleft,      sla.carpos, 0);
+    hs.fr = PER_plot_SLA(sla.frontright,    sla.carpos, 0);
+    hs.fl = PER_plot_SLA(sla.frontleft,     sla.carpos, 0);
+
+    drawnow;
+    
+    while(plotting)
+        for ii = [(2*sla.n_step_steering - 1):-1:2 1:(2*sla.n_step_steering - 1)-1]
+%             disp(ii);
+            PER_plot_SLA(sla.rr(:,:,n_step_ride), sla.carpos, 0, hs.rr);
+            PER_plot_SLA(sla.rl(:,:,n_step_ride), sla.carpos, 0, hs.rl);
+            PER_plot_SLA(sla.fr(:,:,n_step_ride,ii), sla.carpos, 0, hs.fr);
+            PER_plot_SLA(sla.fl(:,:,n_step_ride,ii), sla.carpos, 0, hs.fl);
 
             drawnow;
         end
