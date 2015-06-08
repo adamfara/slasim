@@ -11,9 +11,9 @@ m2in = m2mm * mm2in;
 R = [1 0 0;  0 -1 0;  0 0 -1];
 
 n_step_ride = 20;
-n_step_steering = 10;
+n_step_steering = 20;
 desired_ride_travel = 3;
-desired_steering_travel = 1;
+desired_steering_travel = 1.8;
 n_points = 10000;
 
 name = ['sla-t' num2str(desired_ride_travel) '-s' num2str(n_step_ride) '-n' num2str(n_points) '-s' num2str(n_step_steering)];
@@ -92,39 +92,58 @@ rl_lut(:,2,:) = -rl_lut(:,2,:);
 % Front wheels are steered at the TRI
 step_steering = desired_steering_travel / (n_step_steering - 1);
 fr_lut = zeros([size(rr_lut) 2*n_step_steering-1]);
+fl_lut = zeros([size(rr_lut) 2*n_step_steering-1]);
 
 frr = sla_kinematics(frontright, -1, desired_ride_travel, n_step_ride, n_points, carpos);
 frj = sla_kinematics(frontright, 1, desired_ride_travel, n_step_ride, n_points, carpos);
 fr_lut(:,:,:,n_step_steering) = cat(3, frr(:,:,end:-1:2), frj);
 frontright_steered = frontright;
 
+flr = sla_kinematics(frontleft, -1, desired_ride_travel, n_step_ride, n_points, carpos);
+flj = sla_kinematics(frontleft, 1, desired_ride_travel, n_step_ride, n_points, carpos);
+fl_lut(:,:,:,n_step_steering) = cat(3, flr(:,:,end:-1:2), flj);
+frontleft_steered = frontleft;
+
+
 for ii = 2:n_step_steering
     frontright_steered = sla_steer(frontright_steered, step_steering, n_points);
+    frontleft_steered = sla_steer(frontleft_steered, step_steering, n_points);
     
     frr = sla_kinematics(frontright_steered, -1, desired_ride_travel, n_step_ride, n_points, carpos);
     frj = sla_kinematics(frontright_steered, 1, desired_ride_travel, n_step_ride, n_points, carpos);
     fr_lut(:,:,:,ii + n_step_steering - 1) = cat(3, frr(:,:,end:-1:2), frj);
+    
+    flr = sla_kinematics(frontleft_steered, -1, desired_ride_travel, n_step_ride, n_points, carpos);
+    flj = sla_kinematics(frontleft_steered, 1, desired_ride_travel, n_step_ride, n_points, carpos);
+    fl_lut(:,:,:,ii + n_step_steering - 1) = cat(3, flr(:,:,end:-1:2), flj);
 end
 
 frontright_steered = frontright;
+frontleft_steered = frontleft;
 for ii = 2:n_step_steering
     frontright_steered = sla_steer(frontright_steered, -step_steering, n_points);
+    frontleft_steered = sla_steer(frontleft_steered, -step_steering, n_points);
     
     frr = sla_kinematics(frontright_steered, -1, desired_ride_travel, n_step_ride, n_points, carpos);
     frj = sla_kinematics(frontright_steered, 1, desired_ride_travel, n_step_ride, n_points, carpos);
     fr_lut(:,:,:,-ii+1+n_step_steering) = cat(3, frr(:,:,end:-1:2), frj);
+    
+    flr = sla_kinematics(frontleft_steered, -1, desired_ride_travel, n_step_ride, n_points, carpos);
+    flj = sla_kinematics(frontleft_steered, 1, desired_ride_travel, n_step_ride, n_points, carpos);
+    fl_lut(:,:,:,-ii+1+n_step_steering) = cat(3, flr(:,:,end:-1:2), flj);
 end
     
 
-fl_lut = fr_lut;
-fl_lut(:,2,:,:) = -fl_lut(:,2,:,end:-1:1);
+% fl_lut = fr_lut;
+% fl_lut(:,2,:,:) = -fl_lut(:,2,:,end:-1:1);
 
 
 %% Calculate geometric parameters for the rig
 rr_geo = sla_geometry(rr_lut);
 rl_geo = sla_geometry(rl_lut);
-fr_geo = sla_geometry(fr_lut(:,:,:,1));
-fl_geo = sla_geometry(fl_lut(:,:,:,1));
+
+fr_geo = sla_geometry(fr_lut);
+fl_geo = sla_geometry(fl_lut);
 
 
 %% Save outputs for future use
@@ -193,6 +212,7 @@ plotting = true;
 if (plotting)
     figure(1); clf; hold on;
     hs.o = PER_plot_origin(sla.carbox, sla.carpos);
+    view(-90,90);
 
     hs.rr_o = PER_plot_SLA(sla.rearright,   sla.carpos);
     hs.rl_o = PER_plot_SLA(sla.rearleft,    sla.carpos);

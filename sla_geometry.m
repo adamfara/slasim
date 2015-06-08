@@ -4,6 +4,24 @@
 % SLA suspension rigger
 
 function [ opts ] = sla_geometry( ipts )
+
+    n_steps_ride = size(ipts, 3);
+    n_steps_steering = size(ipts, 4);
+    
+    opts.camber             = zeros(n_steps_steering, n_steps_ride);
+    opts.steered_angle      = zeros(n_steps_steering, n_steps_ride);
+    opts.caster             = zeros(n_steps_steering, n_steps_ride);
+    opts.trail              = zeros(n_steps_steering, n_steps_ride);
+    opts.kingpin            = zeros(n_steps_steering, n_steps_ride);
+    opts.scrub              = zeros(n_steps_steering, n_steps_ride);
+    opts.spindle            = zeros(n_steps_steering, n_steps_ride);
+    opts.fv_ic              = zeros(n_steps_steering, 3, n_steps_ride);
+%     opts.sv_ic              = zeros(n_steps_steering, n_steps_ride);
+%     opts.rch                = zeros(n_steps_steering, n_steps_ride);
+%     opts.camber_change_rate = zeros(n_steps_steering, n_steps_ride);
+
+    for ii = 1:n_steps_steering
+    
     % ipts:
     % uaf uao uar
     % laf lao lar
@@ -15,31 +33,27 @@ function [ opts ] = sla_geometry( ipts )
     % shock inboard
     
     %% Read LUT
-    upper_fibj          = squeeze(ipts(1,:,:));
-    upper_ribj          = squeeze(ipts(3,:,:));
-    upper_obj           = squeeze(ipts(2,:,:));
-    lower_fibj          = squeeze(ipts(4,:,:));
-    lower_ribj          = squeeze(ipts(6,:,:));
-    lower_obj           = squeeze(ipts(5,:,:));
-    wheel_center        = squeeze(ipts(7,:,:));
-    contact_patch       = squeeze(ipts(8,:,:));
-    tierod_inner        = squeeze(ipts(9,:,:));
-    tierod_outer        = squeeze(ipts(10,:,:));
-    pushrod_outer       = squeeze(ipts(11,:,:));
-    bellcrank_pivot     = squeeze(ipts(12,:,:));
-    bellcrank_axis      = squeeze(ipts(13,:,:));
-    bellcrank_shock     = squeeze(ipts(14,:,:));
-    bellcrank_arb       = squeeze(ipts(15,:,:));
-    bellcrank_pushrod   = squeeze(ipts(16,:,:));
-    arb_link_pt         = squeeze(ipts(17,:,:));
-    arb_pivot           = squeeze(ipts(18,:,:));
-    arb_axis            = squeeze(ipts(19,:,:));
-    shock_inboard       = squeeze(ipts(20,:,:));
-    spindle_ref         = squeeze(ipts(21,:,:));
-    
-    n_steps = size(ipts, 3);
-
-    
+    upper_fibj          = squeeze(ipts(1,:,:,ii));
+    upper_ribj          = squeeze(ipts(3,:,:,ii));
+    upper_obj           = squeeze(ipts(2,:,:,ii));
+    lower_fibj          = squeeze(ipts(4,:,:,ii));
+    lower_ribj          = squeeze(ipts(6,:,:,ii));
+    lower_obj           = squeeze(ipts(5,:,:,ii));
+    wheel_center        = squeeze(ipts(7,:,:,ii));
+    contact_patch       = squeeze(ipts(8,:,:,ii));
+    tierod_inner        = squeeze(ipts(9,:,:,ii));
+    tierod_outer        = squeeze(ipts(10,:,:,ii));
+    pushrod_outer       = squeeze(ipts(11,:,:,ii));
+    bellcrank_pivot     = squeeze(ipts(12,:,:,ii));
+    bellcrank_axis      = squeeze(ipts(13,:,:,ii));
+    bellcrank_shock     = squeeze(ipts(14,:,:,ii));
+    bellcrank_arb       = squeeze(ipts(15,:,:,ii));
+    bellcrank_pushrod   = squeeze(ipts(16,:,:,ii));
+    arb_link_pt         = squeeze(ipts(17,:,:,ii));
+    arb_pivot           = squeeze(ipts(18,:,:,ii));
+    arb_axis            = squeeze(ipts(19,:,:,ii));
+    shock_inboard       = squeeze(ipts(20,:,:,ii));
+    spindle_ref         = squeeze(ipts(21,:,:,ii));
     
     
     %% Camber Curves
@@ -99,15 +113,15 @@ function [ opts ] = sla_geometry( ipts )
     dot_upper = -dot(upper_normal, upper_fibj);
     dot_lower = -dot(lower_normal, lower_fibj);
     
-    fv_ic = [zeros(1, n_steps);
+    fv_ic = [zeros(1, n_steps_ride);
              -(dot_lower .* -upper_normal(3, :) - dot_upper .* -lower_normal(3, :)) ./ instant_axis_normal(1,:);
              -(dot_upper .* -lower_normal(2, :) - dot_lower .* -upper_normal(2, :)) ./ instant_axis_normal(1,:)];
     
     % Side View Instant Center
-    t = (contact_patch(1) - fv_ic(1))/instant_axis_normal(1);
-    sv_ic(1) = contact_patch(1);
-    sv_ic(2) = fv_ic(2) + t*instant_axis_normal(2);
-    sv_ic(3) = fv_ic(3) + t*instant_axis_normal(3);
+%     t = (contact_patch(1) - fv_ic(1))/instant_axis_normal(1);
+%     sv_ic(1) = contact_patch(1);
+%     sv_ic(2) = fv_ic(2) + t*instant_axis_normal(2);
+%     sv_ic(3) = fv_ic(3) + t*instant_axis_normal(3);
     
     
     % Camber Change Rate
@@ -117,18 +131,18 @@ function [ opts ] = sla_geometry( ipts )
     %% Calculate some interesting travels - can correlate to data and such
     opts.cp_travel = contact_patch(3,:);
     opts.shock_travel = sqrt(sum((bellcrank_shock - shock_inboard).^2,1));
-    opts.shock_travel = opts.shock_travel - opts.shock_travel((n_steps+1)/2);
+    opts.shock_travel = opts.shock_travel - opts.shock_travel((n_steps_ride+1)/2);
     
     % can only do arb angle relative to centerline - need other corner for
     % full bar displacement angle
-    r = arb_pivot(:,(n_steps+1)/2) - arb_axis(:,(n_steps+1)/2);
+    r = arb_pivot(:,(n_steps_ride+1)/2) - arb_axis(:,(n_steps_ride+1)/2);
     r_unit = r ./ norm(r);
-    v = arb_link_pt(:,(n_steps+1)/2) - arb_pivot(:,(n_steps+1)/2);
+    v = arb_link_pt(:,(n_steps_ride+1)/2) - arb_pivot(:,(n_steps_ride+1)/2);
     cp_arb_offset = dot(r_unit, v);
-    cp_arb = arb_pivot(:,(n_steps+1)/2) + cp_arb_offset * r_unit;
+    cp_arb = arb_pivot(:,(n_steps_ride+1)/2) + cp_arb_offset * r_unit;
     
     arb_a = bsxfun(@minus, arb_link_pt, cp_arb);
-    arb_b = repmat(arb_a(:,(n_steps+1)/2), 1, n_steps);
+    arb_b = repmat(arb_a(:,(n_steps_ride+1)/2), 1, n_steps_ride);
     
     arb_a = bsxfun(@rdivide, arb_a, sqrt(sum(arb_a.^2,1)));
     arb_b = bsxfun(@rdivide, arb_b, sqrt(sum(arb_b.^2,1)));
@@ -141,17 +155,19 @@ function [ opts ] = sla_geometry( ipts )
     opts.arb_ang_disp = sign(opts.cp_travel) .* acosd(dot(arb_a, arb_b));
     
     %% Collect other outputs
-    opts.camber = camber;
-    opts.steered_angle = toe;
-    opts.caster = caster;
-    opts.trail = trail;
-    opts.kingpin = kingpin;
-    opts.scrub = scrub;
-    opts.spindle = spindle;
-    opts.fv_ic = fv_ic;
-%     opts.sv_ic = sv_ic;
-%     opts.rch = RCH;
-%     opts.camber_change_rate = camber_change_rate;
+    opts.camber(ii,:) = camber;
+    opts.steered_angle(ii,:) = toe;
+    opts.caster(ii,:) = caster;
+    opts.trail(ii,:) = trail;
+    opts.kingpin(ii,:) = kingpin;
+    opts.scrub(ii,:) = scrub;
+    opts.spindle(ii,:) = spindle;
+    opts.fv_ic(ii,:,:) = fv_ic;
+%     opts.sv_ic(ii,:) = sv_ic;
+%     opts.rch(ii,:) = RCH;
+%     opts.camber_change_rate(ii,:) = camber_change_rate;
+
+    end
 
     
 end
