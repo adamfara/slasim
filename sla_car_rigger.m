@@ -132,7 +132,6 @@ for ii = 2:n_step_steering
     flj = sla_kinematics(frontleft_steered, 1, desired_ride_travel, n_step_ride, n_points, carpos);
     fl_lut(:,:,:,-ii+1+n_step_steering) = cat(3, flr(:,:,end:-1:2), flj);
 end
-    
 
 % fl_lut = fr_lut;
 % fl_lut(:,2,:,:) = -fl_lut(:,2,:,end:-1:1);
