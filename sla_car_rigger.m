@@ -172,7 +172,7 @@ save([name '.mat']);
 
 %% Actuate suspension through ride range
 
-plotting = false;
+plotting = true;
 
 if (plotting)
     figure(1); clf; hold on;
